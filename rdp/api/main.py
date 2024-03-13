@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Optional
 
 from fastapi import FastAPI, HTTPException
 
@@ -135,3 +135,15 @@ def create_device(device_data: ApiTypes.DeviceNoID) -> ApiTypes.Device:
 @app.get("/get_devices/")
 def get_devices():
     return crud.get_devices()
+
+@app.get("/get_values/by_device_id_or_name/", response_model=List[ApiTypes.Value])
+def read_values_by_device(device_id: Optional[int] = None, device_name: Optional[str] = None):
+    if device_id is None and device_name is None:
+        raise HTTPException(status_code=400, detail="Either device_id or device_name must be provided")
+    try:
+        values = crud.get_values_by_device(device_id=device_id, device_name=device_name)
+        return values
+    except crud.NoResultFound:
+        raise HTTPException(status_code=404, detail="Device not found or no values for this device")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -1,7 +1,7 @@
 import logging
 
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -153,3 +153,17 @@ class Crud:
         """Retrieve all devices from the database."""
         with Session(self._engine) as session:
             return session.query(Device).all()
+
+    def get_values_by_device(self, device_id: Optional[int] = None, device_name: Optional[str] = None) -> List[Value]:
+        with Session(self._engine) as session:
+            if device_id is not None:
+                stmt = select(Value).where(Value.device_id == device_id)
+            elif device_name is not None:
+                device = session.query(Device).filter(Device.name == device_name).first()
+                if device is None:
+                    raise self.NoResultFound("Device not found")
+                stmt = select(Value).where(Value.device_id == device.id)
+            else:
+                raise ValueError("Either device_id or device_name must be provided")
+            
+            return session.scalars(stmt).all()
