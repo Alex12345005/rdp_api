@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from rdp.sensor import Reader
 from rdp.crud import create_engine, Crud
 from . import api_types as ApiTypes
+
 import logging
 
 logger = logging.getLogger("rdp.api")
@@ -112,3 +113,25 @@ async def shutdown_event():
     logger.debug("SHUTDOWN: Sensor reader!")
     reader.stop()
     logger.info("SHUTDOWN: Sensor reader completed!")
+
+@app.post("/create_device/", response_model=ApiTypes.Device)
+def create_device(device_data: ApiTypes.DeviceNoID) -> ApiTypes.Device:
+    """Create a new device with the given name and description.
+
+    Args:
+        device_data (ApiTypes.DeviceCreate): The name and description of the new device.
+
+    Returns:
+        ApiTypes.Device: The created device with its ID, name, and description.
+    """
+    global crud
+    try:
+        new_device = crud.add_device(name=device_data.name, description=device_data.description)
+        return ApiTypes.Device(id=new_device.id, name=new_device.name, description=new_device.description)
+    except crud.IntegrityError as e:
+        logger.error(f"Failed to create a new device: {e}")
+        raise HTTPException(status_code=400, detail="Failed to create a new device due to a database error.")
+
+@app.get("/get_devices/")
+def get_devices():
+    return crud.get_devices()

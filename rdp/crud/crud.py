@@ -1,11 +1,13 @@
 import logging
+
+from datetime import datetime, timezone
 from typing import List
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
 
-from .model import Base, Value, ValueType
+from .model import Base, Value, ValueType, Device
 
 
 class Crud:
@@ -22,7 +24,7 @@ class Crud:
         value_type_name: str = None,
         value_type_unit: str = None,
     ) -> None:
-        """update or add a value type
+        """update or add a value typ
 
         Args:
             value_type_id (int, optional): ValueType id to be modified (if None a new ValueType is added), Default to None.
@@ -51,7 +53,7 @@ class Crud:
             session.commit()
             return db_type
 
-    def add_value(self, value_time: int, value_type: int, value_value: float) -> None:
+    def add_value(self, value_time: int, value_type: int, value_value: float, device_id: int) -> None:
         """Add a measurement point to the database.
 
         Args:
@@ -62,7 +64,7 @@ class Crud:
         with Session(self._engine) as session:
             stmt = select(ValueType).where(ValueType.id == value_type)
             db_type = self.add_or_update_value_type(value_type)
-            db_value = Value(time=value_time, value=value_value, value_type=db_type)
+            db_value = Value(time=value_time, value=value_value, value_type=db_type, device_id=device_id)
 
             session.add_all([db_type, db_value])
             try:
@@ -122,3 +124,32 @@ class Crud:
             logging.error(stmt)
 
             return session.scalars(stmt).all()
+
+    def add_device(self, name: str, description: str) -> Device:
+        """Add a new device to the database.
+
+        Args:
+            name (str): The name of the device.
+            description (str): The description of the device.
+
+        Returns:
+            Device: The newly created Device object.
+        """
+        with Session(self._engine) as session:
+            new_device = Device(name=name, description=description)
+            session.add(new_device)
+            try:
+                session.commit()
+                device_id = new_device.id  
+                device_name = new_device.name  
+                device_description = new_device.description  
+            except IntegrityError:
+                logging.error("IntegrityError while adding a new device.")
+                session.rollback()
+                raise
+            return Device(id=device_id, name=device_name, description=device_description)
+
+    def get_devices(self) -> List[Device]:
+        """Retrieve all devices from the database."""
+        with Session(self._engine) as session:
+            return session.query(Device).all()
