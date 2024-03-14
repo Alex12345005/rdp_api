@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
 
-from .model import Base, Value, ValueType, Device
+from .model import Base, Value, ValueType, Device, Location, City
 
 
 class Crud:
@@ -125,7 +125,7 @@ class Crud:
 
             return session.scalars(stmt).all()
 
-    def add_device(self, name: str, description: str) -> Device:
+    def add_device(self, name: str, description: str, city_id: int) -> Device:
         """Add a new device to the database.
 
         Args:
@@ -136,18 +136,19 @@ class Crud:
             Device: The newly created Device object.
         """
         with Session(self._engine) as session:
-            new_device = Device(name=name, description=description)
+            new_device = Device(name=name, description=description, city_id=city_id)
             session.add(new_device)
             try:
                 session.commit()
                 device_id = new_device.id  
                 device_name = new_device.name  
                 device_description = new_device.description  
+                device_city_id = new_device.city_id
             except IntegrityError:
                 logging.error("IntegrityError while adding a new device.")
                 session.rollback()
                 raise
-            return Device(id=device_id, name=device_name, description=device_description)
+            return Device(id=device_id, name=device_name, description=device_description, city_id = city_id)
 
     def get_devices(self) -> List[Device]:
         """Retrieve all devices from the database."""
@@ -167,3 +168,35 @@ class Crud:
                 raise ValueError("Either device_id or device_name must be provided")
             
             return session.scalars(stmt).all()
+
+    def create_location(self, name: str) -> Location:
+        with Session(self._engine) as session:
+            new_location = Location(name=name)
+            session.add(new_location)
+            session.commit()
+            session.refresh(new_location)
+            return new_location
+
+    def create_city(self, name: str, location_id: int) -> City:
+        with Session(self._engine) as session:
+            new_city = City(name=name, location_id=location_id)
+            session.add(new_city)
+            session.commit()
+            session.refresh(new_city)
+            return new_city
+
+    def get_devices_by_city(self, city_id: int) -> List[Device]:
+        with Session(self._engine) as session:
+            return session.query(Device).filter(Device.city_id == city_id).all()
+
+    def get_all_locations(self) -> List[Location]:
+        with Session(self._engine) as session:
+            return session.query(Location).all()
+
+    def get_all_cities(self) -> List[City]:
+        with Session(self._engine) as session:
+            return session.query(City).all()
+
+    def get_cities_by_location_id(self, location_id: int) -> List[City]:
+        with Session(self._engine) as session:
+            return session.query(City).filter(City.location_id == location_id).all()

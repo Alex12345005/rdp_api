@@ -1,6 +1,6 @@
 from typing import Union, List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 
 from rdp.sensor import Reader
 from rdp.crud import create_engine, Crud
@@ -126,8 +126,8 @@ def create_device(device_data: ApiTypes.DeviceNoID) -> ApiTypes.Device:
     """
     global crud
     try:
-        new_device = crud.add_device(name=device_data.name, description=device_data.description)
-        return ApiTypes.Device(id=new_device.id, name=new_device.name, description=new_device.description)
+        new_device = crud.add_device(name=device_data.name, description=device_data.description, city_id=device_data.city_id)
+        return ApiTypes.Device(id=new_device.id, name=new_device.name, description=new_device.description, city_id=new_device.city_id)
     except crud.IntegrityError as e:
         logger.error(f"Failed to create a new device: {e}")
         raise HTTPException(status_code=400, detail="Failed to create a new device due to a database error.")
@@ -147,3 +147,83 @@ def read_values_by_device(device_id: Optional[int] = None, device_name: Optional
         raise HTTPException(status_code=404, detail="Device not found or no values for this device")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/create_location/", response_model=ApiTypes.Location)
+def create_location(location_data: ApiTypes.LocationNoID):
+    """Create a new location with the given name.
+
+    Args:
+        location_data (ApiTypes.LocationNoID): The name of the new location.
+
+    Returns:
+        ApiTypes.Location: The created location with its ID and name.
+    """
+    try:
+        new_location = crud.create_location(name=location_data.name)
+        return ApiTypes.Location(id=new_location.id, name=new_location.name)
+    except crud.IntegrityError as e:
+        logger.error(f"Failed to create a new location: {e}")
+        raise HTTPException(status_code=400, detail="Failed to create a new location due to a database error.")
+
+@app.post("/create_city/", response_model=ApiTypes.City)
+def create_city(city_data: ApiTypes.CityNoID):
+    """Create a new city with the given name and associated location.
+
+    Args:
+        city_data (ApiTypes.CityNoID): The name of the new city and the ID of its location.
+
+    Returns:
+        ApiTypes.City: The created city with its ID, name, and location ID.
+    """
+    try:
+        new_city = crud.create_city(name=city_data.name, location_id=city_data.location_id)
+        return ApiTypes.City(id=new_city.id, name=new_city.name, location_id=new_city.location_id)
+    except crud.IntegrityError as e:
+        logger.error(f"Failed to create a new city: {e}")
+        raise HTTPException(status_code=400, detail="Failed to create a new city due to a database error.")
+
+@app.get("/get_devices/by_city/{city_id}/", response_model=List[ApiTypes.Device])
+def get_devices_by_city(city_id: int):
+    """Get devices by city ID.
+
+    Args:
+        city_id (int): The ID of the city to retrieve devices for.
+
+    Returns:
+        List[ApiTypes.Device]: A list of devices associated with the city ID.
+    """
+    devices = crud.get_devices_by_city(city_id=city_id)
+    return [ApiTypes.Device(id=device.id, name=device.name, description=device.description, city_id=device.city_id) for device in devices]
+
+@app.get("/get_all_locations/", response_model=List[ApiTypes.Location])
+def get_all_locations():
+    """Get all locations.
+
+    Returns:
+        List[ApiTypes.Location]: A list of all locations.
+    """
+    locations = crud.get_all_locations()
+    return [ApiTypes.Location(id=location.id, name=location.name) for location in locations]
+
+@app.get("/get_all_cities/", response_model=List[ApiTypes.City])
+def get_all_cities():
+    """Get all cities.
+
+    Returns:
+        List[ApiTypes.City]: A list of all cities.
+    """
+    cities = crud.get_all_cities()
+    return [ApiTypes.City(id=city.id, name=city.name, location_id=city.location_id) for city in cities]
+
+@app.get("/get_cities_by_location_id/{location_id}/", response_model=List[ApiTypes.City])
+def get_cities_by_location_id(location_id: int):
+    """Get cities by location ID.
+
+    Args:
+        location_id (int): The ID of the location to get cities for.
+
+    Returns:
+        List[ApiTypes.City]: A list of cities belonging to the given location ID.
+    """
+    cities = crud.get_cities_by_location_id(location_id=location_id)
+    return [ApiTypes.City(id=city.id, name=city.name, location_id=city.location_id) for city in cities]

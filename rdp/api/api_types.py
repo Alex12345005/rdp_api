@@ -24,6 +24,26 @@ class ApiDescription(BaseModel):
 class DeviceNoID(BaseModel):
     name: str
     description: str
+    city_id: int
 
 class Device(DeviceNoID):
     id: int
+
+class LocationNoID(BaseModel):
+    name: str
+
+class Location(LocationNoID):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+class CityNoID(BaseModel):
+    name: str
+    location_id: int
+
+class City(CityNoID):
+    id: int
+
+    class Config:
+        orm_mode = True

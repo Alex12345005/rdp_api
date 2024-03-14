@@ -1,7 +1,7 @@
 from typing import List
 from typing import Optional
 from sqlalchemy import ForeignKey, UniqueConstraint
-from sqlalchemy import String, Float, DateTime
+from sqlalchemy import String, Float, DateTime, Integer  
 
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.orm import sessionmaker
@@ -9,16 +9,40 @@ from sqlalchemy.orm import sessionmaker
 class Base(DeclarativeBase):
     pass
 
+class Location(Base):
+    __tablename__ = "location"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    # Beziehung zu City definieren
+    cities: Mapped[List["City"]] = relationship("City", back_populates="location")
+
+    def __repr__(self) -> str:
+        return f"Location(id={self.id!r}, name={self.name!r})"
+
+class City(Base):
+    __tablename__ = "city"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    location_id: Mapped[int] = mapped_column(Integer, ForeignKey("location.id"))
+    # Beziehung zu Location und Device definieren
+    location: Mapped["Location"] = relationship("Location", back_populates="cities")
+    devices: Mapped[List["Device"]] = relationship("Device", back_populates="city")
+
+    def __repr__(self) -> str:
+        return f"City(id={self.id!r}, name={self.name!r}, location_id={self.location_id!r})"
+
 class Device(Base):
     __tablename__ = "device"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column()
-    description: Mapped[str] = mapped_column()
-
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    description: Mapped[str] = mapped_column(String)
+    city_id: Mapped[int] = mapped_column(Integer, ForeignKey("city.id"))
+    # Beziehung zu City aktualisieren
+    city: Mapped["City"] = relationship("City", back_populates="devices")
     values: Mapped[List["Value"]] = relationship("Value", back_populates="device")
 
     def __repr__(self) -> str:
-        return f"Device(id={self.id!r}, name={self.name!r}, description={self.description!r})"
+        return f"Device(id={self.id!r}, name={self.name!r}, description={self.description!r}, city_id={self.city_id!r})"
 
 class Value(Base):
     __tablename__ = "value"
